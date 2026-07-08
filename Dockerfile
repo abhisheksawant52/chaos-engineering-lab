@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Builder stage -------------------------------------------------------
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 WORKDIR /build
 
@@ -14,7 +14,7 @@ RUN python -m pip install --upgrade pip build \
     && pip install --prefix=/install /wheels/*.whl
 
 # ---- Runtime stage -------------------------------------------------------
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # Copy the installed site-packages and the chaos-lab entrypoint.
 COPY --from=builder /install /usr/local
