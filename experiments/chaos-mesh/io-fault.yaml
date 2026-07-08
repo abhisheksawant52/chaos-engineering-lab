@@ -1,0 +1,30 @@
+---
+# Chaos Mesh IOChaos: inject filesystem latency into target pods.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: io-fault
+  namespace: chaos-testing
+  labels:
+    app.kubernetes.io/name: chaos-engineering-lab
+  annotations:
+    chaos-lab.dev/description: "Inject disk I/O latency and watch request success."
+    chaos-lab.dev/duration-seconds: "60"
+    chaos-lab.dev/steady-state: |
+      - name: request-success-rate
+        metric: 'sum(rate(http_requests_total{code=~"2.."}[1m])) / sum(rate(http_requests_total[1m]))'
+        comparator: ge
+        threshold: 0.95
+spec:
+  action: latency
+  mode: all
+  selector:
+    namespaces:
+      - chaos-testing
+    labelSelectors:
+      app: target-app
+  volumePath: /data
+  path: "/data/**/*"
+  delay: "100ms"
+  percent: 50
+  duration: "60s"

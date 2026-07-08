@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Chaos lab
+chaos-experiments.json
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan
+.terraform.lock.hcl
+
+# Kubeconfig / secrets
+kubeconfig
+*.kubeconfig
+.kube/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

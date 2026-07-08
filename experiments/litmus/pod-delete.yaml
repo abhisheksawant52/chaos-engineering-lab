@@ -1,0 +1,88 @@
+---
+# LitmusChaos pod-delete experiment.
+# Randomly deletes target pods to verify the workload self-heals and that
+# availability stays within the steady-state hypothesis.
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: pod-delete
+  namespace: chaos-testing
+  labels:
+    app.kubernetes.io/name: chaos-engineering-lab
+  annotations:
+    chaos-lab.dev/description: "Randomly delete pods and verify self-healing."
+    chaos-lab.dev/duration-seconds: "60"
+    chaos-lab.dev/steady-state: |
+      - name: availability
+        metric: 'avg(up{job="target-app"})'
+        comparator: ge
+        threshold: 0.99
+      - name: ready-replicas
+        metric: 'kube_deployment_status_replicas_available{deployment="target-app"}'
+        comparator: ge
+        threshold: 2
+spec:
+  appinfo:
+    appns: chaos-testing
+    applabel: "app=target-app"
+    appkind: deployment
+  engineState: active
+  chaosServiceAccount: chaos-engineering-lab-runner
+  annotationCheck: "false"
+  experiments:
+    - name: pod-delete
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "60"
+            - name: CHAOS_INTERVAL
+              value: "10"
+            - name: FORCE
+              value: "false"
+            - name: PODS_AFFECTED_PERC
+              value: "50"
+        probe:
+          - name: check-app-endpoint
+            type: httpProbe
+            mode: Continuous
+            httpProbe/inputs:
+              url: http://target-app.chaos-testing.svc.cluster.local:8080/health
+              method:
+                get:
+                  criteria: ==
+                  responseCode: "200"
+            runProperties:
+              probeTimeout: 5
+              interval: 5
+              retry: 3
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: pod-delete
+  namespace: chaos-testing
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["create", "delete", "get", "list", "patch", "update"]
+      - apiGroups: ["apps"]
+        resources: ["deployments", "replicasets"]
+        verbs: ["get", "list"]
+    image: "litmuschaos/go-runner:latest"
+    args:
+      - -c
+      - ./experiments -name pod-delete
+    command:
+      - /bin/bash
+    env:
+      - name: TOTAL_CHAOS_DURATION
+        value: "60"
+      - name: CHAOS_INTERVAL
+        value: "10"
+    labels:
+      name: pod-delete
+      app.kubernetes.io/part-of: litmus

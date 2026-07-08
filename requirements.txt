@@ -1,0 +1,6 @@
+click>=8.1
+pydantic>=2.5
+pydantic-settings>=2.1
+kubernetes>=29.0
+requests>=2.31
+PyYAML>=6.0

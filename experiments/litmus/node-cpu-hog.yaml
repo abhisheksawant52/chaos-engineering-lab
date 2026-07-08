@@ -1,0 +1,66 @@
+---
+# LitmusChaos node-cpu-hog experiment.
+# Saturates CPU on a target node to validate scheduling pressure handling and
+# that application latency remains within the steady-state hypothesis.
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: node-cpu-hog
+  namespace: chaos-testing
+  labels:
+    app.kubernetes.io/name: chaos-engineering-lab
+  annotations:
+    chaos-lab.dev/description: "Saturate CPU on a node and watch latency SLOs."
+    chaos-lab.dev/duration-seconds: "120"
+    chaos-lab.dev/steady-state: |
+      - name: p99-latency-seconds
+        metric: 'histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))'
+        comparator: lt
+        threshold: 0.5
+spec:
+  engineState: active
+  chaosServiceAccount: chaos-engineering-lab-runner
+  annotationCheck: "false"
+  experiments:
+    - name: node-cpu-hog
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "120"
+            - name: NODE_CPU_CORE
+              value: "2"
+            - name: TARGET_NODES
+              value: ""
+            - name: NODES_AFFECTED_PERC
+              value: "0"
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: node-cpu-hog
+  namespace: chaos-testing
+spec:
+  definition:
+    scope: Cluster
+    permissions:
+      - apiGroups: [""]
+        resources: ["nodes"]
+        verbs: ["get", "list"]
+      - apiGroups: [""]
+        resources: ["pods", "pods/exec", "pods/log", "events"]
+        verbs: ["create", "delete", "get", "list", "patch", "update"]
+    image: "litmuschaos/go-runner:latest"
+    args:
+      - -c
+      - ./experiments -name node-cpu-hog
+    command:
+      - /bin/bash
+    env:
+      - name: TOTAL_CHAOS_DURATION
+        value: "120"
+      - name: NODE_CPU_CORE
+        value: "2"
+    labels:
+      name: node-cpu-hog
+      app.kubernetes.io/part-of: litmus

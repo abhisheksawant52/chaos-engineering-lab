@@ -1,0 +1,31 @@
+---
+# Chaos Mesh NetworkChaos: add egress latency to target pods.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-delay
+  namespace: chaos-testing
+  labels:
+    app.kubernetes.io/name: chaos-engineering-lab
+  annotations:
+    chaos-lab.dev/description: "Add 300ms egress latency and watch the error rate."
+    chaos-lab.dev/duration-seconds: "90"
+    chaos-lab.dev/steady-state: |
+      - name: error-rate
+        metric: 'sum(rate(http_requests_total{code=~"5.."}[1m])) / sum(rate(http_requests_total[1m]))'
+        comparator: lt
+        threshold: 0.05
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - chaos-testing
+    labelSelectors:
+      app: target-app
+  delay:
+    latency: "300ms"
+    correlation: "50"
+    jitter: "50ms"
+  direction: to
+  duration: "90s"

@@ -1,0 +1,73 @@
+---
+# LitmusChaos pod-network-latency experiment.
+# Injects egress latency into target pods to validate timeout and retry
+# behaviour while keeping error rate within the steady-state hypothesis.
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: network-latency
+  namespace: chaos-testing
+  labels:
+    app.kubernetes.io/name: chaos-engineering-lab
+  annotations:
+    chaos-lab.dev/description: "Inject network latency and watch the error rate."
+    chaos-lab.dev/duration-seconds: "90"
+    chaos-lab.dev/steady-state: |
+      - name: error-rate
+        metric: 'sum(rate(http_requests_total{code=~"5.."}[1m])) / sum(rate(http_requests_total[1m]))'
+        comparator: lt
+        threshold: 0.05
+spec:
+  appinfo:
+    appns: chaos-testing
+    applabel: "app=target-app"
+    appkind: deployment
+  engineState: active
+  chaosServiceAccount: chaos-engineering-lab-runner
+  annotationCheck: "false"
+  experiments:
+    - name: pod-network-latency
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "90"
+            - name: NETWORK_INTERFACE
+              value: "eth0"
+            - name: NETWORK_LATENCY
+              value: "300"
+            - name: JITTER
+              value: "50"
+            - name: PODS_AFFECTED_PERC
+              value: "50"
+            - name: CONTAINER_RUNTIME
+              value: "containerd"
+            - name: SOCKET_PATH
+              value: "/run/containerd/containerd.sock"
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: pod-network-latency
+  namespace: chaos-testing
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods", "pods/exec", "pods/log", "events"]
+        verbs: ["create", "delete", "get", "list", "patch", "update"]
+    image: "litmuschaos/go-runner:latest"
+    args:
+      - -c
+      - ./experiments -name pod-network-latency
+    command:
+      - /bin/bash
+    env:
+      - name: TOTAL_CHAOS_DURATION
+        value: "90"
+      - name: NETWORK_LATENCY
+        value: "300"
+    labels:
+      name: pod-network-latency
+      app.kubernetes.io/part-of: litmus

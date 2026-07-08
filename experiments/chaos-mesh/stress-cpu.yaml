@@ -1,0 +1,29 @@
+---
+# Chaos Mesh StressChaos: burn CPU inside target pods.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: stress-cpu
+  namespace: chaos-testing
+  labels:
+    app.kubernetes.io/name: chaos-engineering-lab
+  annotations:
+    chaos-lab.dev/description: "Burn CPU in target pods to exercise autoscaling."
+    chaos-lab.dev/duration-seconds: "120"
+    chaos-lab.dev/steady-state: |
+      - name: p99-latency-seconds
+        metric: 'histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))'
+        comparator: lt
+        threshold: 0.5
+spec:
+  mode: all
+  selector:
+    namespaces:
+      - chaos-testing
+    labelSelectors:
+      app: target-app
+  stressors:
+    cpu:
+      workers: 2
+      load: 80
+  duration: "120s"

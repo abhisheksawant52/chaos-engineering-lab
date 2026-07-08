@@ -1,0 +1,30 @@
+---
+# Chaos Mesh PodChaos: kill a fraction of target pods once.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-kill
+  namespace: chaos-testing
+  labels:
+    app.kubernetes.io/name: chaos-engineering-lab
+  annotations:
+    chaos-lab.dev/description: "Kill one target pod and verify self-healing."
+    chaos-lab.dev/duration-seconds: "30"
+    chaos-lab.dev/steady-state: |
+      - name: availability
+        metric: 'avg(up{job="target-app"})'
+        comparator: ge
+        threshold: 0.99
+      - name: ready-replicas
+        metric: 'kube_deployment_status_replicas_available{deployment="target-app"}'
+        comparator: ge
+        threshold: 2
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - chaos-testing
+    labelSelectors:
+      app: target-app
+  gracePeriod: 0

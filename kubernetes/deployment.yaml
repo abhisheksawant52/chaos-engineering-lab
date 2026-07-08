@@ -1,7 +1,63 @@
-
-apiVersion: apps/v1
-kind: Deployment
+---
+# Scheduled experiment runner.
+# Runs the packaged chaos-lab CLI on a schedule to execute a game-day style
+# experiment. Adjust the schedule and the experiment name per environment.
+apiVersion: batch/v1
+kind: CronJob
 metadata:
-  name: sample-app
+  name: chaos-engineering-lab-runner
+  namespace: chaos-testing
+  labels:
+    app.kubernetes.io/name: chaos-engineering-lab
+    app.kubernetes.io/component: runner
 spec:
-  replicas: 2
+  # Every weekday at 10:00 (business hours, so on-call can observe).
+  schedule: "0 10 * * 1-5"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: chaos-engineering-lab
+            app.kubernetes.io/component: runner
+        spec:
+          serviceAccountName: chaos-engineering-lab-runner
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: runner
+              image: ghcr.io/abhisheksawant52/chaos-engineering-lab:0.1.0
+              imagePullPolicy: IfNotPresent
+              args: ["run", "pod-kill", "--engine", "chaos-mesh"]
+              env:
+                - name: NAMESPACE
+                  value: chaos-testing
+                - name: CHAOS_ENGINE
+                  value: chaos-mesh
+                - name: PROMETHEUS_URL
+                  value: http://prometheus.monitoring.svc.cluster.local:9090
+                - name: EXPERIMENTS_DIR
+                  value: /app/experiments
+                - name: LOG_LEVEL
+                  value: INFO
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
